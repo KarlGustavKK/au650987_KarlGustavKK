@@ -1,0 +1,111 @@
+---
+title: "GOT_opgave"
+author: "KGKK"
+date: "2022-12-02"
+output: html_document
+---
+
+#Loauding Packages
+```{r}
+library(tidyverse)
+library(here)
+library(pdftools)
+library(tidytext)
+library(textdata) 
+library(ggwordcloud)
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Locating A Game of Thrones text
+```{r}
+got_path <- here("data","got.pdf")
+got_text <- pdf_text(got_path)
+```
+
+#Extracting the data from A Game of Thrones
+```{r}
+got_df <- data.frame(got_text) %>% 
+  mutate(text_full = str_split(got_text, pattern = '\\n')) %>% 
+  unnest(text_full) %>% 
+  mutate(text_full = str_trim(text_full)) 
+```
+
+#Seperating into lines
+```{r}
+got_tokens <- got_df %>% 
+  unnest_tokens(word, text_full)
+```
+
+#Counting all of the words
+```{r count-words}
+got_wc <- got_tokens %>% 
+  count(word) %>% 
+  arrange(-n)
+got_wc
+```
+#Removing the stop words from data
+```{r stopwords}
+got_stop <- got_tokens %>% 
+  anti_join(stop_words) %>% 
+  select(-got_text)
+```
+#Chexking the wordcount again
+```{r count-words2}
+got_swc <- got_stop %>% 
+  count(word) %>% 
+  arrange(-n)
+```
+#Removing numbers
+```{r}
+got_no_numeric <- got_stop %>% 
+  filter(is.na(as.numeric(word)))
+```
+#Selecting the top 100 words for the wordcloud
+```{r}
+got_top100 <- got_no_numeric %>% 
+  count(word) %>% 
+  arrange(-n) %>% 
+  head(100)
+```
+#Creating a wordcloud
+```{r wordcloud}
+got_cloud <- ggplot(data = got_top100, aes(label = word)) +
+  geom_text_wordcloud() +
+  theme_minimal()
+```
+#Customizing the wordcloud
+```{r wordcloud}
+ggplot(data = got_top100, aes(label = word, size = n)) +
+  geom_text_wordcloud_area(aes(color = n), shape = "diamond") +
+  scale_size_area(max_size = 12) +
+  scale_color_gradientn(colors = c("darkgreen","blue","red")) +
+  theme_minimal()
+```
+#Implementing the "afinn", "bing" and "nrc" sentiment word rank
+```{r}
+get_sentiments(lexicon = "afinn")
+get_sentiments(lexicon = "bing")
+get_sentiments(lexicon = "nrc")
+```
+#Binding the words in "got_stop" to "afinn" word list
+```{r bind-afinn}
+got_afinn <- got_stop %>% 
+  inner_join(get_sentiments("afinn"))
+```
+
+#Ranking
+```{r count-afinn}
+got_afinn_hist <- got_afinn %>% 
+  count(value)
+```
+
+#Plotting
+```{r count-afinn}
+ggplot(data = got_afinn_hist, aes(x = value, y = n)) +
+  geom_col()
+```
+
+
