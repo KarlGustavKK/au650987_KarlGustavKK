@@ -1,0 +1,129 @@
+---
+title: "Twist_exam"
+author: "KGKK"
+date: "2022-12-12"
+output: html_document
+---
+
+```{r Loading Packages}
+library(tidyverse)
+library(here)
+library(pdftools)
+library(tidytext)
+library(textdata) 
+library(ggwordcloud)
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r Using gutenbergr to download file}
+install.packages("gutenbergr")
+install.packages("devtools")
+devtools::install_github("ropensci/gutenbergr")
+library(dplyr)
+library(gutenbergr)
+gutenberg_download(730)
+```
+```{r naming the file}
+twist <- gutenberg_download(730)
+```
+
+
+```{r seperating into words}
+twist%>% 
+  unnest_tokens(word, text) -> twist_tidy
+
+```
+
+```{r sorting by most used words}
+twist_tidy %>% 
+  count(word, sort = TRUE)
+```
+
+twist_text <- data.table::fwrite((twist_tidy))
+
+
+```{r removing stopwords}
+twist_stop <- twist_tidy %>% 
+  anti_join(stop_words)
+```
+#Checking the wordcount again
+```{r count-words2}
+twist_swc <- twist_stop %>% 
+  count(word) %>% 
+  arrange(-n)
+```
+
+#Removing numbers
+```{r}
+twist_no_numeric <- twist_stop %>% 
+  filter(is.na(as.numeric(word)))
+```
+
+#Selecting the top 100 words for the wordcloud
+```{r}
+twist_top100 <- twist_no_numeric %>% 
+  count(word) %>% 
+  arrange(-n) %>% 
+  head(100)
+```
+
+#Creating a wordcloud
+```{r wordcloud}
+twist_cloud <- ggplot(data = twist_top100, aes(label = word)) +
+  geom_text_wordcloud() +
+  theme_minimal()
+```
+
+#Customizing the wordcloud
+```{r wordcloud}
+ggplot(data = twist_top100, aes(label = word, size = n)) +
+  geom_text_wordcloud_area(aes(color = n), shape = "diamond") +
+  scale_size_area(max_size = 12) +
+  scale_color_gradientn(colors = c("darkgreen","blue","red")) +
+  theme_minimal()
+```
+
+#Implementing the "afinn", "bing" and "nrc" sentiment word rank
+```{r}
+get_sentiments(lexicon = "afinn")
+get_sentiments(lexicon = "bing")
+get_sentiments(lexicon = "nrc")
+```
+
+#Binding the words in "twist_stop" to "afinn" word list
+```{r bind-afinn}
+twist_afinn <- twist_stop %>% 
+  inner_join(get_sentiments("afinn"))
+```
+
+#Ranking
+```{r count-afinn}
+twist_afinn_hist <- twist_afinn %>% 
+  count(value)
+```
+
+#Plotting
+```{r count-afinn}
+ggplot(data = twist_afinn_hist, aes(x = value, y = n)) +
+  geom_col()
+```
+
+```{r}
+twist_afinn %>% 
+  filter(value == -5)
+```
+
+```{r}
+twist_afinn %>% 
+  filter(value == -4)
+```
+
+```{r}
+twist_afinn %>% 
+  filter(value == -3)
+```
+
